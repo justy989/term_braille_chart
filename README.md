@@ -1,1 +1,3 @@
 # termpix
+
+q to quit
