@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <ncurses.h>
 #include <locale.h>
+#include <math.h>
 
 #include "back_buffer.h"
 
@@ -8,6 +9,34 @@ typedef struct{
      int32_t x;
      int32_t y;
 }Point_t;
+
+// NOTE: bresenham line algo
+void line(BackBuffer_t* back_buffer, int32_t x_0, int32_t y_0, int32_t x_1, int32_t y_1){
+     int32_t dy = (y_0 < y_1) ? 1 : -1;
+
+     if(x_0 == x_1){
+          for(int32_t y = y_0; y <= y_1; y += dy){
+               back_buffer_set_pixel(back_buffer, x_0, y, true);
+          }
+          return;
+     }
+
+     double delta_x = x_1 - x_0;
+     double delta_y = y_1 - y_0;
+     double delta_error = fabs(delta_y / delta_x);
+     double error = 0.0f;
+     int32_t y = y_0;
+     int32_t dx = (x_0 < x_1) ? 1 : -1;
+     for(int32_t x = x_0; x != x_1; x += dx){
+          back_buffer_set_pixel(back_buffer, x, y, true);
+          error += delta_error;
+          while(error >= 0.5f){
+               y += dy;
+               error -= 1.0f;
+          }
+     }
+
+}
 
 int main(){
      setlocale(LC_ALL, "");
@@ -31,7 +60,7 @@ int main(){
      }
 
      BackBuffer_t back_buffer = {};
-     back_buffer_init(&back_buffer, 16, 16);
+     back_buffer_init(&back_buffer, 50, 50);
 
 #if 0
      bool flag = false;
@@ -100,6 +129,24 @@ int main(){
           back_buffer_set_pixel(&back_buffer, art[i].x, art[i].y, true);
      }
 #endif
+
+     // front square
+     line(&back_buffer, 16, 10, 32, 10);
+     line(&back_buffer, 16, 26, 32, 26);
+     line(&back_buffer, 16, 10, 16, 26);
+     line(&back_buffer, 32, 10, 32, 26);
+
+     // back square
+     line(&back_buffer, 24, 0, 40, 0);
+     line(&back_buffer, 24, 16, 40, 16);
+     line(&back_buffer, 24, 0, 24, 16);
+     line(&back_buffer, 40, 0, 40, 16);
+
+     // connections
+     line(&back_buffer, 16, 10, 24, 0);
+     line(&back_buffer, 16, 26, 24, 16);
+     line(&back_buffer, 32, 10, 40, 0);
+     line(&back_buffer, 32, 26, 40, 16);
 
      init_pair(1, COLOR_GREEN, -1);
      attron(COLOR_PAIR(1));
