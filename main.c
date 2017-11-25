@@ -1,14 +1,11 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <ncurses.h>
 #include <locale.h>
 #include <math.h>
 
 #include "back_buffer.h"
-
-typedef struct{
-     int32_t x;
-     int32_t y;
-}Point_t;
 
 // NOTE: bresenham line algo
 void line(BackBuffer_t* back_buffer, int32_t x_0, int32_t y_0, int32_t x_1, int32_t y_1){
@@ -35,7 +32,73 @@ void line(BackBuffer_t* back_buffer, int32_t x_0, int32_t y_0, int32_t x_1, int3
                error -= 1.0f;
           }
      }
+}
 
+typedef struct{
+     double price;
+     int64_t timestamp;
+}PriceSample_t;
+
+typedef struct{
+     PriceSample_t* samples;
+     int64_t count;
+     int64_t allocated;
+}PriceData_t;
+
+bool price_data_init(PriceData_t* price_data, int64_t allocated_samples){
+     price_data->samples = calloc(allocated_samples, sizeof(*price_data->samples));
+     if(!price_data->samples) return false;
+     price_data->count = 0;
+     price_data->allocated = allocated_samples;
+     return true;
+}
+
+bool price_data_insert(PriceData_t* price_data, double price, int64_t timestamp){
+     int64_t new_count = price_data->count + 1;
+     int64_t allocated = price_data->allocated;
+
+     // double heuristic
+     while(new_count < allocated) allocated *= 2;
+
+     if(allocated != price_data->allocated){
+          price_data->samples = realloc(price_data->samples, allocated * sizeof(*price_data->samples));
+          if(!price_data->samples) return false;
+          price_data->allocated = allocated;
+     }
+
+     PriceSample_t* sample = price_data->samples + price_data->count;
+     sample->price = price;
+     sample->timestamp = timestamp;
+
+     price_data->count = new_count;
+
+     return true;
+}
+
+void price_data_free(PriceData_t* price_data){
+     free(price_data->samples);
+     memset(price_data->samples, 0, sizeof(*price_data));
+}
+
+typedef struct{
+     PriceData_t* price_data;
+     double min_price;
+     double max_price;
+     int64_t min_timestamp;
+     int64_t max_timestamp;
+     BackBuffer_t back_buffer;
+}PriceDataView_t;
+
+void price_data_view_set(PriceDataView_t* price_data_view, double min_price, double max_price, int64_t min_timestamp, int64_t max_timestamp,
+                         PriceData_t* price_data, int64_t width, int64_t height){
+     price_data_view->price_data = price_data;
+
+     price_data_view->min_price = min_price;
+     price_data_view->max_price = max_price;
+     price_data_view->min_timestamp = min_timestamp;
+     price_data_view->max_timestamp = max_timestamp;
+
+     back_buffer_init(&price_data_view->back_buffer, width, height);
 }
 
 int main(){
@@ -59,97 +122,11 @@ int main(){
           use_default_colors();
      }
 
-     BackBuffer_t back_buffer = {};
-     back_buffer_init(&back_buffer, 50, 50);
-
-#if 0
-     bool flag = false;
-     for(int32_t j = 0; j < back_buffer_pixel_height(&back_buffer); j++){
-          for(int32_t i = 0; i < back_buffer_pixel_width(&back_buffer); i++){
-               flag = !flag;
-               if(flag){
-                    back_buffer_set_pixel(&back_buffer, j, i, true);
-               }
-          }
-          flag = !flag;
-     }
-
-#else
-     Point_t art[] = {
-          {3, 4},
-          {4, 5},
-          {4, 6},
-          {3, 6},
-          {3, 7},
-          {3, 8},
-          {3, 9},
-          {3, 10},
-          {2, 7},
-          {2, 8},
-          {1, 8},
-          {1, 9},
-          {1, 10},
-          {4, 11},
-          {5, 11},
-          {4, 8},
-          {4, 9},
-          {5, 6},
-          {5, 7},
-          {5, 8},
-          {5, 9},
-          {6, 6},
-          {6, 7},
-          {6, 8},
-          {6, 9},
-          {7, 6},
-          {7, 7},
-          {7, 8},
-          {7, 9},
-          {7, 11},
-          {8, 5},
-          {8, 6},
-          {8, 8},
-          {8, 9},
-          {8, 11},
-          {9, 4},
-          {9, 6},
-          {9, 7},
-          {9, 8},
-          {9, 9},
-          {9, 10},
-          {10, 7},
-          {10, 8},
-          {11, 8},
-          {11, 9},
-          {11, 10},
-     };
-
-     int32_t pixel_count = sizeof(art) / sizeof(art[0]);
-     for(int32_t i = 0; i < pixel_count; i++){
-          back_buffer_set_pixel(&back_buffer, art[i].x, art[i].y, true);
-     }
-#endif
-
-     // front square
-     line(&back_buffer, 16, 10, 32, 10);
-     line(&back_buffer, 16, 26, 32, 26);
-     line(&back_buffer, 16, 10, 16, 26);
-     line(&back_buffer, 32, 10, 32, 26);
-
-     // back square
-     line(&back_buffer, 24, 0, 40, 0);
-     line(&back_buffer, 24, 16, 40, 16);
-     line(&back_buffer, 24, 0, 24, 16);
-     line(&back_buffer, 40, 0, 40, 16);
-
-     // connections
-     line(&back_buffer, 16, 10, 24, 0);
-     line(&back_buffer, 16, 26, 24, 16);
-     line(&back_buffer, 32, 10, 40, 0);
-     line(&back_buffer, 32, 26, 40, 16);
-
      init_pair(1, COLOR_GREEN, -1);
      attron(COLOR_PAIR(1));
+
+     // PriceData_t aapl_data = {};
+     // PriceDataView_t aapl_view = {};
 
      bool done = false;
      while(true){
@@ -164,7 +141,7 @@ int main(){
 
           if(done) break;
 
-          back_buffer_draw(&back_buffer, stdscr);
+          // back_buffer_draw(&back_buffer, stdscr);
           move(0, 0);
           refresh();
      }
