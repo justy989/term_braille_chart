@@ -1276,12 +1276,19 @@ int main(){
 
      chart_window = newwin(80, 200, 0, 8);
 
-     BackBuffer_t back_buffer = {};
-     back_buffer_init(&back_buffer, 200, 80);
+     BackBuffer_t back_buffer_a = {};
+     back_buffer_init(&back_buffer_a, 200, 80);
+     BackBuffer_t back_buffer_b = {};
+     back_buffer_init(&back_buffer_b, 200, 80);
+     BackBuffer_t back_buffer_c = {};
+     back_buffer_init(&back_buffer_c, 200, 80);
+     BackBuffer_t back_buffer_all = {};
+     back_buffer_init(&back_buffer_all, 200, 80);
 
      init_pair(1, COLOR_BLUE, -1);
      init_pair(2, COLOR_RED, -1);
      init_pair(3, COLOR_GREEN, -1);
+     init_pair(4, COLOR_MAGENTA, -1);
 
      LineChart_t line_chart = {155.6, 157.0, sizeof(algo_prices) / sizeof(algo_prices[0])};
      LineChart_t bar_chart = {0.0, 3752.0, sizeof(algo_quantities) / sizeof(algo_quantities[0])};
@@ -1300,41 +1307,56 @@ int main(){
 
           if(done) break;
 
+          draw_line_on_chart(&line_chart, algo_prices, &back_buffer_a, iter);
+          draw_line_on_chart(&line_chart, algo_hft_prices, &back_buffer_b, iter);
+          draw_bar_on_chart(&bar_chart, algo_quantities, &back_buffer_c, iter);
+
+          for(int32_t j = 0; j < back_buffer_all.height; j++){
+               for(int32_t i = 0; i < back_buffer_all.width; i++){
+                    uint8_t* cell_a = back_buffer_get_cell(&back_buffer_a, i, j);
+                    uint8_t* cell_b = back_buffer_get_cell(&back_buffer_b, i, j);
+
+                    if(*cell_a && *cell_b){
+                         uint8_t* cell_all = back_buffer_get_cell(&back_buffer_all, i, j);
+                         *cell_all = *cell_a | *cell_b;
+                    }
+               }
+          }
+
           wstandend(chart_window);
           wattron(chart_window, COLOR_PAIR(1));
-          draw_line_on_chart(&line_chart, algo_prices, &back_buffer, iter);
-          back_buffer_draw(&back_buffer, chart_window);
-          back_buffer_clear(&back_buffer);
+          back_buffer_draw(&back_buffer_a, chart_window);
 
           wstandend(chart_window);
           wattron(chart_window, COLOR_PAIR(2));
-          draw_line_on_chart(&line_chart, algo_hft_prices, &back_buffer, iter);
-          back_buffer_draw(&back_buffer, chart_window);
-          back_buffer_clear(&back_buffer);
+          back_buffer_draw(&back_buffer_b, chart_window);
 
           wstandend(chart_window);
           wattron(chart_window, COLOR_PAIR(3));
-          draw_bar_on_chart(&bar_chart, algo_quantities, &back_buffer, iter);
-          back_buffer_draw(&back_buffer, chart_window);
+          back_buffer_draw(&back_buffer_c, chart_window);
+
+          wstandend(chart_window);
+          wattron(chart_window, COLOR_PAIR(4));
+          back_buffer_draw(&back_buffer_all, chart_window);
 
           wstandend(chart_window);
           double range = line_chart.y_max - line_chart.y_min;
-          for(int32_t i = 0; i < back_buffer.height / COLUMNS_PER_CELL; i++){
+          for(int32_t i = 0; i < back_buffer_a.height / COLUMNS_PER_CELL; i++){
                if(i % 4 == 0){
-                    double value = line_chart.y_min + ((double)(i) / (double)(back_buffer.height)) * range;
+                    double value = line_chart.y_min + ((double)(i) / (double)(back_buffer_a.height)) * range;
                     mvprintw(i, 0, "$%.2f", value);
                }
           }
 
           double total_minutes = 400.0;
-          for(int32_t i = 0; i < (back_buffer.width - 5);){
+          for(int32_t i = 0; i < (back_buffer_a.width - 6);){
                char date_string[32];
-               int32_t minute = 30 + total_minutes * ((double)(i) / (double)(back_buffer.width));
+               int32_t minute = 30 + total_minutes * ((double)(i) / (double)(back_buffer_a.width));
                int32_t hour = 9 + (minute / 60);
                minute %= 60;
-               int32_t len = snprintf(date_string, 32, "%d:%d", hour, minute);
-               mvprintw(back_buffer.height / COLUMNS_PER_CELL, i + 8, date_string);
-               i += len + 1;
+               int32_t len = snprintf(date_string, 32, "%02d:%02d", hour, minute);
+               mvprintw(back_buffer_a.height / COLUMNS_PER_CELL, i + 8, date_string);
+               i += len + 2;
           }
 
           move(0, 0);
@@ -1344,7 +1366,7 @@ int main(){
           if(iter < (line_chart.entry_count - 1)){
                iter++;
           }
-          usleep(10000);
+          usleep(100000);
      }
 
      endwin();

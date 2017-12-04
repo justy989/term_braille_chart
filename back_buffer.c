@@ -18,7 +18,7 @@ void back_buffer_free(BackBuffer_t* back_buffer){
      memset(back_buffer, 0, sizeof(*back_buffer));
 }
 
-static uint8_t* get_cell(BackBuffer_t* back_buffer, int32_t x, int32_t y){
+uint8_t* back_buffer_get_cell(BackBuffer_t* back_buffer, int32_t x, int32_t y){
      if(x < 0 || y < 0 || x >= back_buffer->width || y >= back_buffer->height) return NULL;
      int32_t index = y * back_buffer->width + x;
      return back_buffer->cells + index;
@@ -43,7 +43,7 @@ bool back_buffer_set_pixel(BackBuffer_t* back_buffer, int32_t x, int32_t y, bool
           {0x40, 0x80}
      };
 
-     uint8_t* cell = get_cell(back_buffer, cell_x, cell_y);
+     uint8_t* cell = back_buffer_get_cell(back_buffer, cell_x, cell_y);
 
      if(on){
           *cell |= map[pixel_y][pixel_x];
@@ -57,8 +57,18 @@ bool back_buffer_set_pixel(BackBuffer_t* back_buffer, int32_t x, int32_t y, bool
 void back_buffer_clear(BackBuffer_t* back_buffer){
      for(int32_t j = 0; j < back_buffer->height; j++){
           for(int32_t i = 0; i < back_buffer->width; i++){
-               uint8_t* cell = get_cell(back_buffer, i, j);
+               uint8_t* cell = back_buffer_get_cell(back_buffer, i, j);
                *cell = 0;
+          }
+     }
+}
+
+void back_buffer_add(BackBuffer_t* back_buffer_res, BackBuffer_t* back_buffer_a){
+     for(int32_t j = 0; j < back_buffer_res->height; j++){
+          for(int32_t i = 0; i < back_buffer_res->width; i++){
+               uint8_t* cell_res = back_buffer_get_cell(back_buffer_res, i, j);
+               uint8_t* cell_a = back_buffer_get_cell(back_buffer_a, i, j);
+               *cell_res |= *cell_a;
           }
      }
 }
@@ -124,7 +134,7 @@ void back_buffer_draw(BackBuffer_t* back_buffer, WINDOW* window){
      char string[string_len + 1];
      for(int32_t j = 0; j < back_buffer->height; j++){
           for(int32_t i = 0; i < back_buffer->width; i++){
-               uint8_t* cell = get_cell(back_buffer, i, j);
+               uint8_t* cell = back_buffer_get_cell(back_buffer, i, j);
                if(cell && *cell){
                     int32_t written = 0;
                     memset(string, 0, string_len + 1);
