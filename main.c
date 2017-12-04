@@ -4,7 +4,7 @@
 #include <math.h>
 #include <unistd.h>
 
-#include "back_buffer.h"
+#include "braille_buffer.h"
 
 double algo_prices[] = {
      155.85,
@@ -1186,12 +1186,12 @@ double algo_quantities[] = {
 };
 
 // NOTE: bresenham line algo
-void line(BackBuffer_t* back_buffer, int32_t x_0, int32_t y_0, int32_t x_1, int32_t y_1){
+void line(BrailleBuffer_t* braille_buffer, int32_t x_0, int32_t y_0, int32_t x_1, int32_t y_1){
      int32_t dy = (y_0 < y_1) ? 1 : -1;
 
      if(x_0 == x_1){
           for(int32_t y = y_0; y <= y_1; y += dy){
-               back_buffer_set_pixel(back_buffer, x_0, y, true);
+               braille_buffer_set_pixel(braille_buffer, x_0, y, true);
           }
           return;
      }
@@ -1203,7 +1203,7 @@ void line(BackBuffer_t* back_buffer, int32_t x_0, int32_t y_0, int32_t x_1, int3
      int32_t y = y_0;
      int32_t dx = (x_0 < x_1) ? 1 : -1;
      for(int32_t x = x_0; x != x_1; x += dx){
-          back_buffer_set_pixel(back_buffer, x, y, true);
+          braille_buffer_set_pixel(braille_buffer, x, y, true);
           error += delta_error;
           while(error >= 0.5f){
                y += dy;
@@ -1213,41 +1213,48 @@ void line(BackBuffer_t* back_buffer, int32_t x_0, int32_t y_0, int32_t x_1, int3
 
 }
 
+typedef enum{
+     CHART_TYPE_LINE,
+     CHART_TYPE_BAR,
+}ChartType_t;
+
 typedef struct{
+     ChartType_t type;
      double y_min;
      double y_max;
      int32_t entry_count;
-}LineChart_t;
+}Chart_t;
 
 int32_t double_round(double d){
      return (int32_t)(d + 0.5);
 }
 
-void draw_line_on_chart(LineChart_t* line_chart, double* data, BackBuffer_t* back_buffer, int32_t max){
-     double y_range = line_chart->y_max - line_chart->y_min;
-     int32_t chart_height = back_buffer->height * COLUMNS_PER_CELL;
-     for(int32_t i = 0; i <= max; i++){
-          double d = (data[i] - line_chart->y_min) / y_range;
-          int32_t y = chart_height - double_round((double)(chart_height) * d);
-          back_buffer_set_pixel(back_buffer, i, y, true);
-     }
-}
-
-typedef struct{
-     double y_min;
-     double y_max;
-     int32_t entry_count;
-}BarChart_t;
-
-void draw_bar_on_chart(LineChart_t* line_chart, double* data, BackBuffer_t* back_buffer, int32_t max){
-     double y_range = line_chart->y_max - line_chart->y_min;
-     int32_t chart_height = back_buffer->height * COLUMNS_PER_CELL;
-     for(int32_t i = 0; i <= max; i++){
-          double d = (data[i] - line_chart->y_min) / y_range;
-          int32_t cur_y = chart_height - double_round((double)(chart_height) * d);
-          for(int32_t j = chart_height - 1; j >= cur_y; j--){
-               back_buffer_set_pixel(back_buffer, i, j, true);
+void draw_chart_on_braille_buffer(Chart_t* chart, double* data, BrailleBuffer_t* braille_buffer, int32_t max){
+     switch(chart->type){
+     default:
+          break;
+     case CHART_TYPE_LINE:
+     {
+          double y_range = chart->y_max - chart->y_min;
+          int32_t chart_height = braille_buffer->height * BRAILLE_COLUMNS_PER_CELL;
+          for(int32_t i = 0; i <= max; i++){
+               double d = (data[i] - chart->y_min) / y_range;
+               int32_t y = chart_height - double_round((double)(chart_height) * d);
+               braille_buffer_set_pixel(braille_buffer, i, y, true);
           }
+     } break;
+     case CHART_TYPE_BAR:
+     {
+          double y_range = chart->y_max - chart->y_min;
+          int32_t chart_height = braille_buffer->height * BRAILLE_COLUMNS_PER_CELL;
+          for(int32_t i = 0; i <= max; i++){
+               double d = (data[i] - chart->y_min) / y_range;
+               int32_t cur_y = chart_height - double_round((double)(chart_height) * d);
+               for(int32_t j = chart_height - 1; j >= cur_y; j--){
+                    braille_buffer_set_pixel(braille_buffer, i, j, true);
+               }
+          }
+     } break;
      }
 }
 
@@ -1276,22 +1283,22 @@ int main(){
 
      chart_window = newwin(80, 200, 0, 8);
 
-     BackBuffer_t back_buffer_a = {};
-     back_buffer_init(&back_buffer_a, 200, 80);
-     BackBuffer_t back_buffer_b = {};
-     back_buffer_init(&back_buffer_b, 200, 80);
-     BackBuffer_t back_buffer_c = {};
-     back_buffer_init(&back_buffer_c, 200, 80);
-     BackBuffer_t back_buffer_all = {};
-     back_buffer_init(&back_buffer_all, 200, 80);
+     BrailleBuffer_t braille_buffer_a = {};
+     braille_buffer_init(&braille_buffer_a, 200, 80);
+     BrailleBuffer_t braille_buffer_b = {};
+     braille_buffer_init(&braille_buffer_b, 200, 80);
+     BrailleBuffer_t braille_buffer_c = {};
+     braille_buffer_init(&braille_buffer_c, 200, 80);
+     BrailleBuffer_t braille_buffer_all = {};
+     braille_buffer_init(&braille_buffer_all, 200, 80);
 
      init_pair(1, COLOR_BLUE, -1);
      init_pair(2, COLOR_RED, -1);
      init_pair(3, COLOR_GREEN, -1);
      init_pair(4, COLOR_MAGENTA, -1);
 
-     LineChart_t line_chart = {155.6, 157.0, sizeof(algo_prices) / sizeof(algo_prices[0])};
-     LineChart_t bar_chart = {0.0, 3752.0, sizeof(algo_quantities) / sizeof(algo_quantities[0])};
+     Chart_t price_chart = {CHART_TYPE_LINE, 155.6, 157.0, sizeof(algo_prices) / sizeof(algo_prices[0])};
+     Chart_t quantity_chart = {CHART_TYPE_BAR, 0.0, 3752.0, sizeof(algo_quantities) / sizeof(algo_quantities[0])};
 
      int32_t iter = 0;
      bool done = false;
@@ -1307,17 +1314,17 @@ int main(){
 
           if(done) break;
 
-          draw_line_on_chart(&line_chart, algo_prices, &back_buffer_a, iter);
-          draw_line_on_chart(&line_chart, algo_hft_prices, &back_buffer_b, iter);
-          draw_bar_on_chart(&bar_chart, algo_quantities, &back_buffer_c, iter);
+          draw_chart_on_braille_buffer(&price_chart, algo_prices, &braille_buffer_a, iter);
+          draw_chart_on_braille_buffer(&price_chart, algo_hft_prices, &braille_buffer_b, iter);
+          draw_chart_on_braille_buffer(&quantity_chart, algo_quantities, &braille_buffer_c, iter);
 
-          for(int32_t j = 0; j < back_buffer_all.height; j++){
-               for(int32_t i = 0; i < back_buffer_all.width; i++){
-                    uint8_t* cell_a = back_buffer_get_cell(&back_buffer_a, i, j);
-                    uint8_t* cell_b = back_buffer_get_cell(&back_buffer_b, i, j);
+          for(int32_t j = 0; j < braille_buffer_all.height; j++){
+               for(int32_t i = 0; i < braille_buffer_all.width; i++){
+                    uint8_t* cell_a = braille_buffer_get_cell(&braille_buffer_a, i, j);
+                    uint8_t* cell_b = braille_buffer_get_cell(&braille_buffer_b, i, j);
 
                     if(*cell_a && *cell_b){
-                         uint8_t* cell_all = back_buffer_get_cell(&back_buffer_all, i, j);
+                         uint8_t* cell_all = braille_buffer_get_cell(&braille_buffer_all, i, j);
                          *cell_all = *cell_a | *cell_b;
                     }
                }
@@ -1325,37 +1332,37 @@ int main(){
 
           wstandend(chart_window);
           wattron(chart_window, COLOR_PAIR(1));
-          back_buffer_draw(&back_buffer_a, chart_window);
+          braille_buffer_draw(&braille_buffer_a, chart_window);
 
           wstandend(chart_window);
           wattron(chart_window, COLOR_PAIR(2));
-          back_buffer_draw(&back_buffer_b, chart_window);
+          braille_buffer_draw(&braille_buffer_b, chart_window);
 
           wstandend(chart_window);
           wattron(chart_window, COLOR_PAIR(3));
-          back_buffer_draw(&back_buffer_c, chart_window);
+          braille_buffer_draw(&braille_buffer_c, chart_window);
 
           wstandend(chart_window);
           wattron(chart_window, COLOR_PAIR(4));
-          back_buffer_draw(&back_buffer_all, chart_window);
+          braille_buffer_draw(&braille_buffer_all, chart_window);
 
           wstandend(chart_window);
-          double range = line_chart.y_max - line_chart.y_min;
-          for(int32_t i = 0; i < back_buffer_a.height / COLUMNS_PER_CELL; i++){
+          double range = price_chart.y_max - price_chart.y_min;
+          for(int32_t i = 0; i < braille_buffer_a.height / BRAILLE_COLUMNS_PER_CELL; i++){
                if(i % 4 == 0){
-                    double value = line_chart.y_min + ((double)(i) / (double)(back_buffer_a.height)) * range;
+                    double value = price_chart.y_min + ((double)(i) / (double)(braille_buffer_a.height)) * range;
                     mvprintw(i, 0, "$%.2f", value);
                }
           }
 
           double total_minutes = 400.0;
-          for(int32_t i = 0; i < (back_buffer_a.width - 6);){
+          for(int32_t i = 0; i < (braille_buffer_a.width - 6);){
                char date_string[32];
-               int32_t minute = 30 + total_minutes * ((double)(i) / (double)(back_buffer_a.width));
+               int32_t minute = 30 + total_minutes * ((double)(i) / (double)(braille_buffer_a.width));
                int32_t hour = 9 + (minute / 60);
                minute %= 60;
                int32_t len = snprintf(date_string, 32, "%02d:%02d", hour, minute);
-               mvprintw(back_buffer_a.height / COLUMNS_PER_CELL, i + 8, date_string);
+               mvprintw(braille_buffer_a.height / BRAILLE_COLUMNS_PER_CELL, i + 8, date_string);
                i += len + 2;
           }
 
@@ -1363,7 +1370,7 @@ int main(){
           wrefresh(chart_window);
           refresh();
 
-          if(iter < (line_chart.entry_count - 1)){
+          if(iter < (price_chart.entry_count - 1)){
                iter++;
           }
           usleep(100000);
