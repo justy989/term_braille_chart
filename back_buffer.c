@@ -54,6 +54,15 @@ bool back_buffer_set_pixel(BackBuffer_t* back_buffer, int32_t x, int32_t y, bool
      return true;
 }
 
+void back_buffer_clear(BackBuffer_t* back_buffer){
+     for(int32_t j = 0; j < back_buffer->height; j++){
+          for(int32_t i = 0; i < back_buffer->width; i++){
+               uint8_t* cell = get_cell(back_buffer, i, j);
+               *cell = 0;
+          }
+     }
+}
+
 #define UTF8_SIZE 4
 
 bool utf8_encode(int32_t u, char* string, int64_t string_len, int32_t* bytes_written){
