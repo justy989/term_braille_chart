@@ -24,3 +24,4 @@ void braille_buffer_clear(BrailleBuffer_t* braille_buffer);
 void braille_buffer_draw(BrailleBuffer_t* braille_buffer, WINDOW* window);
 int32_t braille_buffer_pixel_width(BrailleBuffer_t* braille_buffer);
 int32_t braille_buffer_pixel_height(BrailleBuffer_t* braille_buffer);
+void braille_buffer_line(BrailleBuffer_t* braille_buffer, int32_t x_0, int32_t y_0, int32_t x_1, int32_t y_1);

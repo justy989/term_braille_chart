@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 bool braille_buffer_init(BrailleBuffer_t* braille_buffer, int32_t terminal_width, int32_t terminal_height){
      if(braille_buffer->cells) braille_buffer_free(braille_buffer);
@@ -142,4 +143,31 @@ int32_t braille_buffer_pixel_width(BrailleBuffer_t* braille_buffer){
 
 int32_t braille_buffer_pixel_height(BrailleBuffer_t* braille_buffer){
      return braille_buffer->height * BRAILLE_ROWS_PER_CELL;
+}
+
+// NOTE: bresenham line algo
+void braille_buffer_line(BrailleBuffer_t* braille_buffer, int32_t x_0, int32_t y_0, int32_t x_1, int32_t y_1){
+     int32_t dy = (y_0 < y_1) ? 1 : -1;
+
+     if(x_0 == x_1){
+          for(int32_t y = y_0; y <= y_1; y += dy){
+               braille_buffer_set_pixel(braille_buffer, x_0, y, true);
+          }
+          return;
+     }
+
+     double delta_x = x_1 - x_0;
+     double delta_y = y_1 - y_0;
+     double delta_error = fabs(delta_y / delta_x);
+     double error = 0.0f;
+     int32_t y = y_0;
+     int32_t dx = (x_0 < x_1) ? 1 : -1;
+     for(int32_t x = x_0; x != x_1; x += dx){
+          braille_buffer_set_pixel(braille_buffer, x, y, true);
+          error += delta_error;
+          while(error >= 0.5f){
+               y += dy;
+               error -= 1.0f;
+          }
+     }
 }

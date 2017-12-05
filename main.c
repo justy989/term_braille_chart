@@ -1242,13 +1242,36 @@ int main(){
      init_pair(2, COLOR_RED, -1);
      init_pair(3, COLOR_GREEN, -1);
      init_pair(4, COLOR_MAGENTA, -1);
+     init_pair(5, COLOR_YELLOW, -1);
 
      Chart_t price_chart = {CHART_TYPE_LINE, 155.6, 157.0};
      Chart_t quantity_chart = {CHART_TYPE_BAR, 0.0, 3752.0};
+     Chart_t lost_chart = {CHART_TYPE_LINE, 0.0, 2600.0};
      int32_t data_start = 50;
      int32_t data_end = 100;
-     int32_t data_entries = sizeof(algo_prices) / sizeof(algo_prices[0]);
-     int32_t move_speed = 2;
+     const int32_t data_entries = sizeof(algo_prices) / sizeof(algo_prices[0]);
+     int32_t move_speed = 1;
+
+     double price_differences[data_entries];
+     double price_difference = 0;
+     for(int32_t i = 0; i < data_entries; i++){
+          price_difference += (algo_prices[i] * algo_quantities[i]) - (algo_hft_prices[i] * algo_quantities[i]);
+          price_differences[i] = price_difference;
+     }
+
+     ChartView_t chart_view = {};
+     chart_view.data_entry_count = data_entries;
+     chart_view.left_axis_label_format_func = price_axis_label_format_func;
+     chart_view.bottom_axis_label_format_func = time_axis_label_format_func;
+     chart_view.right_axis_label_format_func = quantity_axis_label_format_func;
+     chart_view.left_axis_label_format_func_data = &price_chart;
+     chart_view.bottom_axis_label_format_func_data = NULL;
+     chart_view.right_axis_label_format_func_data = &quantity_chart;
+     chart_view.space_between_bottom_axis_labels = 3;
+     chart_view.lines_between_right_axis_labels = 5;
+     chart_view.lines_between_left_axis_labels = 5;
+
+     chart_view_resize(&chart_view, 210, 80, 8, 5);
 
      bool done = false;
      while(true){
@@ -1303,24 +1326,14 @@ int main(){
           if(done) break;
 
           {
-               ChartView_t chart_view = {};
+               chart_view_clear_charts(&chart_view);
+
                chart_view.data_start_index = data_start;
                chart_view.data_end_index = data_end;
-               chart_view.data_entry_count = data_entries;
-               chart_view.left_axis_label_format_func = price_axis_label_format_func;
-               chart_view.bottom_axis_label_format_func = time_axis_label_format_func;
-               chart_view.right_axis_label_format_func = quantity_axis_label_format_func;
-               chart_view.left_axis_label_format_func_data = &price_chart;
-               chart_view.bottom_axis_label_format_func_data = NULL;
-               chart_view.right_axis_label_format_func_data = &quantity_chart;
-               chart_view.space_between_bottom_axis_labels = 3;
-               chart_view.lines_between_right_axis_labels = 5;
-               chart_view.lines_between_left_axis_labels = 5;
-
-               chart_view_resize(&chart_view, 210, 80, 8, 5);
 
                chart_view_add_chart(&chart_view, price_chart, algo_prices, 1);
                chart_view_add_chart(&chart_view, price_chart, algo_hft_prices, 2);
+               chart_view_add_chart(&chart_view, lost_chart, price_differences, 5);
                chart_view_add_chart(&chart_view, quantity_chart, algo_quantities, 3);
 
                // TODO: this gets cleared when we call chart_view_resize(), what should we do about this?

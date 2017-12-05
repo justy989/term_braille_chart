@@ -43,34 +43,6 @@ void chart_view_free(ChartView_t* chart_view){
      memset(chart_view, 0, sizeof(*chart_view));
 }
 
-// NOTE: bresenham line algo
-// TODO: move to utils ?
-static void line(BrailleBuffer_t* braille_buffer, int32_t x_0, int32_t y_0, int32_t x_1, int32_t y_1){
-     int32_t dy = (y_0 < y_1) ? 1 : -1;
-
-     if(x_0 == x_1){
-          for(int32_t y = y_0; y <= y_1; y += dy){
-               braille_buffer_set_pixel(braille_buffer, x_0, y, true);
-          }
-          return;
-     }
-
-     double delta_x = x_1 - x_0;
-     double delta_y = y_1 - y_0;
-     double delta_error = fabs(delta_y / delta_x);
-     double error = 0.0f;
-     int32_t y = y_0;
-     int32_t dx = (x_0 < x_1) ? 1 : -1;
-     for(int32_t x = x_0; x != x_1; x += dx){
-          braille_buffer_set_pixel(braille_buffer, x, y, true);
-          error += delta_error;
-          while(error >= 0.5f){
-               y += dy;
-               error -= 1.0f;
-          }
-     }
-}
-
 static void draw_chart_on_braille_buffer(Chart_t* chart, double* data, BrailleBuffer_t* braille_buffer,
                                          int32_t start_index, int32_t stop_index, int32_t total_entry_count){
      switch(chart->type){
@@ -93,7 +65,7 @@ static void draw_chart_on_braille_buffer(Chart_t* chart, double* data, BrailleBu
                d = (double)(i - start_index) / (double)(entry_count);
                int32_t x = double_round((double)(chart_width) * d);
 
-               line(braille_buffer, prev_x, prev_y, x, y);
+               braille_buffer_line(braille_buffer, prev_x, prev_y, x, y);
 
                prev_x = x;
                prev_y = y;
@@ -160,6 +132,8 @@ void chart_view_clear_charts(ChartView_t* chart_view){
      for(int32_t b = 0; b < chart_view->braille_buffer_count; b++){
           braille_buffer_clear(chart_view->braille_buffers + b);
      }
+
+     braille_buffer_clear(&chart_view->braille_buffer_combined);
 }
 
 void chart_view_draw(ChartView_t* chart_view, WINDOW* window){
@@ -183,6 +157,7 @@ void chart_view_draw(ChartView_t* chart_view, WINDOW* window){
           }
      }
 
+     // draw right y axis labels
      if(chart_view->right_axis_label_format_func){
           wstandend(window);
           int32_t line_skip = 0;
@@ -202,18 +177,6 @@ void chart_view_draw(ChartView_t* chart_view, WINDOW* window){
           }
      }
 
-     // draw charts
-     for(int32_t i = 0; i < chart_view->braille_buffer_count; i++){
-          BrailleBuffer_t* braille_buffer = chart_view->braille_buffers + i;
-          wstandend(window);
-          wattron(window, COLOR_PAIR(braille_buffer->color_pair));
-          braille_buffer_draw(braille_buffer, window);
-     }
-
-     wstandend(window);
-     wattron(window, COLOR_PAIR(chart_view->braille_buffer_combined.color_pair));
-     braille_buffer_draw(&chart_view->braille_buffer_combined, window);
-
      // draw bottom x axis labels
      wstandend(window);
      int32_t data_range = (chart_view->data_end_index - chart_view->data_start_index) + 1;
@@ -228,4 +191,16 @@ void chart_view_draw(ChartView_t* chart_view, WINDOW* window){
           mvwprintw(window, chart_view->height - 1, i + chart_view->left_axis_label_width, label);
           i += len + chart_view->space_between_bottom_axis_labels;
      }
+
+     // draw charts
+     for(int32_t i = 0; i < chart_view->braille_buffer_count; i++){
+          BrailleBuffer_t* braille_buffer = chart_view->braille_buffers + i;
+          wstandend(window);
+          wattron(window, COLOR_PAIR(braille_buffer->color_pair));
+          braille_buffer_draw(braille_buffer, window);
+     }
+
+     wstandend(window);
+     wattron(window, COLOR_PAIR(chart_view->braille_buffer_combined.color_pair));
+     braille_buffer_draw(&chart_view->braille_buffer_combined, window);
 }
