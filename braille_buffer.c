@@ -20,17 +20,17 @@ void braille_buffer_free(BrailleBuffer_t* braille_buffer){
 }
 
 uint8_t* braille_buffer_get_cell(BrailleBuffer_t* braille_buffer, int32_t x, int32_t y){
-     if(x < 0 || y < 0 || x >= braille_buffer->width || y >= braille_buffer->height) return NULL;
+     // if(x < 0 || y < 0 || x >= braille_buffer->width * BRAILLE_COLUMNS_PER_CELL || y >= braille_buffer->height * BRAILLE_ROWS_PER_CELL) return NULL;
      int32_t index = y * braille_buffer->width + x;
      return braille_buffer->cells + index;
 }
 
 bool braille_buffer_set_pixel(BrailleBuffer_t* braille_buffer, int32_t x, int32_t y, bool on){
-     if(x < 0 || y < 0) return false;
+     // if(x < 0 || y < 0) return false;
 
-     int32_t max_x = braille_buffer->width * BRAILLE_COLUMNS_PER_CELL;
-     int32_t max_y = braille_buffer->height * BRAILLE_ROWS_PER_CELL;
-     if(x >= max_x || y >= max_y) return false;
+     // int32_t max_x = braille_buffer->width * BRAILLE_COLUMNS_PER_CELL;
+     // int32_t max_y = braille_buffer->height * BRAILLE_ROWS_PER_CELL;
+     // if(x >= max_x || y >= max_y) return false;
 
      int32_t cell_x = x / BRAILLE_COLUMNS_PER_CELL;
      int32_t cell_y = y / BRAILLE_ROWS_PER_CELL;
@@ -45,6 +45,7 @@ bool braille_buffer_set_pixel(BrailleBuffer_t* braille_buffer, int32_t x, int32_
      };
 
      uint8_t* cell = braille_buffer_get_cell(braille_buffer, cell_x, cell_y);
+     if(!cell) return false;
 
      if(on){
           *cell |= map[pixel_y][pixel_x];
@@ -56,11 +57,11 @@ bool braille_buffer_set_pixel(BrailleBuffer_t* braille_buffer, int32_t x, int32_
 }
 
 void braille_buffer_clear(BrailleBuffer_t* braille_buffer){
-     for(int32_t j = 0; j < braille_buffer->height; j++){
-          for(int32_t i = 0; i < braille_buffer->width; i++){
-               uint8_t* cell = braille_buffer_get_cell(braille_buffer, i, j);
-               *cell = 0;
-          }
+     uint8_t* cell = braille_buffer->cells;
+     int32_t count = braille_buffer->width * braille_buffer->height;
+     for(int32_t i = 0; i < count; i++){
+          *cell = 0;
+          cell++;
      }
 }
 
@@ -123,17 +124,19 @@ bool utf8_encode(int32_t u, char* string, int64_t string_len, int32_t* bytes_wri
 void braille_buffer_draw(BrailleBuffer_t* braille_buffer, WINDOW* window){
      const int string_len = UTF8_SIZE;
      char string[string_len + 1];
-     for(int32_t j = 0; j < braille_buffer->height; j++){
-          for(int32_t i = 0; i < braille_buffer->width; i++){
-               uint8_t* cell = braille_buffer_get_cell(braille_buffer, i, j);
-               if(cell && *cell){
-                    int32_t written = 0;
-                    memset(string, 0, string_len + 1);
-                    if(utf8_encode(0x2800 + *cell, string, string_len, &written)){
-                         mvwaddstr(window, braille_buffer->y_offset + j, braille_buffer->x_offset + i, string);
-                    }
+     int32_t count = braille_buffer->width * braille_buffer->height;
+     uint8_t* cell = braille_buffer->cells;
+     for(int32_t i = 0; i < count; i++){
+          if(*cell){
+               int32_t x = i % braille_buffer->width;
+               int32_t y = i / braille_buffer->width;
+               int32_t written = 0;
+               memset(string, 0, string_len + 1);
+               if(utf8_encode(0x2800 + *cell, string, string_len, &written)){
+                    mvwaddstr(window, braille_buffer->y_offset + y, braille_buffer->x_offset + x, string);
                }
           }
+          cell++;
      }
 }
 

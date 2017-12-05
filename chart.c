@@ -110,18 +110,18 @@ void chart_view_add_chart(ChartView_t* chart_view, Chart_t chart, double* data, 
      draw_chart_on_braille_buffer(&chart, data, buffer, chart_view->data_start_index, chart_view->data_end_index,
                                   chart_view->data_entry_count);
      buffer->color_pair = color_pair;
+     int32_t count = chart_view->braille_buffer_combined.width * chart_view->braille_buffer_combined.height;
 
      for(int32_t b = 0; b < chart_view->braille_buffer_count; b++){
-          for(int32_t j = 0; j < chart_view->braille_buffer_combined.height; j++){
-               for(int32_t i = 0; i < chart_view->braille_buffer_combined.width; i++){
-                    uint8_t* cell_a = braille_buffer_get_cell(buffer, i, j);
-                    uint8_t* cell_b = braille_buffer_get_cell(chart_view->braille_buffers + b, i, j);
+          uint8_t* cell_a = buffer->cells;
+          uint8_t* cell_b = chart_view->braille_buffers[b].cells;
+          uint8_t* cell_combined = chart_view->braille_buffer_combined.cells;
+          for(int32_t i = 0; i < count; i++){
+               if(*cell_a && *cell_b) *cell_combined |= *cell_a | *cell_b;
 
-                    if(*cell_a && *cell_b){
-                         uint8_t* cell_all = braille_buffer_get_cell(&chart_view->braille_buffer_combined, i, j);
-                         *cell_all |= *cell_a | *cell_b;
-                    }
-               }
+               cell_a++;
+               cell_b++;
+               cell_combined++;
           }
      }
 
