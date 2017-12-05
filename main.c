@@ -1186,34 +1186,6 @@ double algo_quantities[] = {
      3752,
 };
 
-// NOTE: bresenham line algo
-void line(BrailleBuffer_t* braille_buffer, int32_t x_0, int32_t y_0, int32_t x_1, int32_t y_1){
-     int32_t dy = (y_0 < y_1) ? 1 : -1;
-
-     if(x_0 == x_1){
-          for(int32_t y = y_0; y <= y_1; y += dy){
-               braille_buffer_set_pixel(braille_buffer, x_0, y, true);
-          }
-          return;
-     }
-
-     double delta_x = x_1 - x_0;
-     double delta_y = y_1 - y_0;
-     double delta_error = fabs(delta_y / delta_x);
-     double error = 0.0f;
-     int32_t y = y_0;
-     int32_t dx = (x_0 < x_1) ? 1 : -1;
-     for(int32_t x = x_0; x != x_1; x += dx){
-          braille_buffer_set_pixel(braille_buffer, x, y, true);
-          error += delta_error;
-          while(error >= 0.5f){
-               y += dy;
-               error -= 1.0f;
-          }
-     }
-
-}
-
 bool price_axis_label_format_func(int32_t index, int32_t max, char* label, int32_t byte_count, void* user_data){
      Chart_t* chart = user_data;
      double range = chart->y_max - chart->y_min;
@@ -1233,7 +1205,7 @@ bool quantity_axis_label_format_func(int32_t index, int32_t max, char* label, in
 }
 
 bool time_axis_label_format_func(int32_t index, int32_t max, char* label, int32_t byte_count, void* user_data){
-     double total_minutes = 390.0;
+     double total_minutes = (double)(max);
      int32_t minute = 30 + total_minutes * ((double)(index) / (double)(max));
      int32_t hour = 9 + (minute / 60);
      minute %= 60;
@@ -1273,27 +1245,10 @@ int main(){
 
      Chart_t price_chart = {CHART_TYPE_LINE, 155.6, 157.0};
      Chart_t quantity_chart = {CHART_TYPE_BAR, 0.0, 3752.0};
-
-     ChartView_t chart_view = {};
-     chart_view.data_entry_count = 390;
-     chart_view.left_axis_label_format_func = price_axis_label_format_func;
-     chart_view.bottom_axis_label_format_func = time_axis_label_format_func;
-     chart_view.right_axis_label_format_func = quantity_axis_label_format_func;
-     chart_view.left_axis_label_format_func_data = &price_chart;
-     chart_view.bottom_axis_label_format_func_data = NULL;
-     chart_view.right_axis_label_format_func_data = &quantity_chart;
-     chart_view.space_between_bottom_axis_labels = 3;
-     chart_view.lines_between_right_axis_labels = 5;
-     chart_view.lines_between_left_axis_labels = 5;
-
-     chart_view_resize(&chart_view, 210, 80, 8, 5);
-
-     chart_view_add_chart(&chart_view, price_chart, algo_prices, 1);
-     chart_view_add_chart(&chart_view, price_chart, algo_hft_prices, 2);
-     chart_view_add_chart(&chart_view, quantity_chart, algo_quantities, 3);
-
-     // TODO: this gets cleared when we call chart_view_resize(), what should we do about this?
-     chart_view.braille_buffer_combined.color_pair = 4;
+     int32_t data_start = 50;
+     int32_t data_end = 100;
+     int32_t data_entries = sizeof(algo_prices) / sizeof(algo_prices[0]);
+     int32_t move_speed = 2;
 
      bool done = false;
      while(true){
@@ -1304,11 +1259,75 @@ int main(){
           case 'q':
                done = true;
                break;
+          case KEY_LEFT:
+               if(data_start > 0){
+                    data_start -= move_speed;
+                    data_end -= move_speed;
+               }
+               werase(chart_window);
+               break;
+          case KEY_RIGHT:
+               if(data_end < data_entries){
+                    data_start += move_speed;
+                    data_end += move_speed;
+               }
+               werase(chart_window);
+               break;
+          case KEY_UP:
+          {
+               int32_t diff = data_end - data_start;
+               diff /= 4;
+               data_end -= diff;
+               data_start += diff;
+               if(data_end < data_start) data_end = data_start;
+               werase(chart_window);
+          } break;
+          case KEY_DOWN:
+          {
+               int32_t diff = data_end - data_start;
+               data_end += diff;
+               data_start -= diff;
+               if(data_start < 0){
+                    data_start = 0;
+                    data_end = diff * 2;
+               }
+               if(data_end >= data_entries){
+                    data_end = data_entries - 1;
+                    data_start = (data_entries - 1) - diff * 2;
+               }
+               if(data_start < 0) data_start = 0;
+               werase(chart_window);
+          } break;
           }
 
           if(done) break;
 
-          chart_view_draw(&chart_view, chart_window);
+          {
+               ChartView_t chart_view = {};
+               chart_view.data_start_index = data_start;
+               chart_view.data_end_index = data_end;
+               chart_view.data_entry_count = data_entries;
+               chart_view.left_axis_label_format_func = price_axis_label_format_func;
+               chart_view.bottom_axis_label_format_func = time_axis_label_format_func;
+               chart_view.right_axis_label_format_func = quantity_axis_label_format_func;
+               chart_view.left_axis_label_format_func_data = &price_chart;
+               chart_view.bottom_axis_label_format_func_data = NULL;
+               chart_view.right_axis_label_format_func_data = &quantity_chart;
+               chart_view.space_between_bottom_axis_labels = 3;
+               chart_view.lines_between_right_axis_labels = 5;
+               chart_view.lines_between_left_axis_labels = 5;
+
+               chart_view_resize(&chart_view, 210, 80, 8, 5);
+
+               chart_view_add_chart(&chart_view, price_chart, algo_prices, 1);
+               chart_view_add_chart(&chart_view, price_chart, algo_hft_prices, 2);
+               chart_view_add_chart(&chart_view, quantity_chart, algo_quantities, 3);
+
+               // TODO: this gets cleared when we call chart_view_resize(), what should we do about this?
+               chart_view.braille_buffer_combined.color_pair = 4;
+
+               chart_view_draw(&chart_view, chart_window);
+          }
 
           move(0, 0);
           wrefresh(chart_window);

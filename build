@@ -2,6 +2,6 @@
 set -x
 SOURCES=(main.c braille_buffer.c chart.c)
 FLAGS='-Wall -Werror -Wshadow -Wextra -Wno-unused-parameter -std=gnu11 -ggdb3'
-EXE='termpix'
+EXE='term_braille_chart'
 LINK='-lncursesw -lm'
 clang $FLAGS ${SOURCES[*]} -o $EXE $LINK

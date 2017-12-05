@@ -21,6 +21,8 @@ typedef struct{
      BrailleBuffer_t braille_buffer_combined;
      int32_t width;
      int32_t height;
+     int32_t data_start_index;
+     int32_t data_end_index;
      int32_t data_entry_count;
      ChartLabelFormatFunc* left_axis_label_format_func;
      ChartLabelFormatFunc* bottom_axis_label_format_func;
@@ -39,4 +41,5 @@ void chart_view_resize(ChartView_t* chart_view, int32_t window_width, int32_t wi
                        int32_t left_axis_label_width, int32_t right_axis_label_width);
 void chart_view_free(ChartView_t* chart_view);
 void chart_view_add_chart(ChartView_t* chart_view, Chart_t chart, double* data, int color_pair);
+void chart_view_clear_charts(ChartView_t* chart_view);
 void chart_view_draw(ChartView_t* chart_view, WINDOW* window);
