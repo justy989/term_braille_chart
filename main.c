@@ -1344,8 +1344,6 @@ int main(){
 
           move(0, 0);
           wrefresh(chart_window);
-
-          usleep(100000);
      }
 
      endwin();
