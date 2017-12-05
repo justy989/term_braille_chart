@@ -1218,13 +1218,17 @@ bool price_axis_label_format_func(int32_t index, int32_t max, char* label, int32
      Chart_t* chart = user_data;
      double range = chart->y_max - chart->y_min;
      double value = chart->y_min + ((double)(max - index) / (double)(max)) * range;
+     value -= fmod(value, 0.05);
      snprintf(label, byte_count, "$%.2f", value);
      return true;
 }
 
 bool quantity_axis_label_format_func(int32_t index, int32_t max, char* label, int32_t byte_count, void* user_data){
-     double value = 0;
-     snprintf(label, byte_count, "%.2f", value);
+     Chart_t* chart = user_data;
+     double range = chart->y_max - chart->y_min;
+     double value = chart->y_min + ((double)(max - index) / (double)(max)) * range;
+     value -= fmod(value, 50.0);
+     snprintf(label, byte_count, "%'d", (int)(value));
      return true;
 }
 

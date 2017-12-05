@@ -105,20 +105,41 @@ void chart_view_add_chart(ChartView_t* chart_view, Chart_t chart, double* data, 
 
 void chart_view_draw(ChartView_t* chart_view, WINDOW* window){
      // draw left y axis labels
-     wstandend(window);
-     int32_t line_skip = 0;
-     int32_t label_draw_height = chart_view->braille_buffer_combined.height;
-     for(int32_t i = 0; i < label_draw_height; i++){
-          if(line_skip == chart_view->lines_between_left_axis_labels || i == (label_draw_height - 1) || i == 0){
-               int32_t label_bytes = chart_view->left_axis_label_width + 1;
-               char label[label_bytes];
-               memset(label, 0, label_bytes);
-               chart_view->left_axis_label_format_func(i, label_draw_height, label, label_bytes,
-                                                       chart_view->left_axis_label_format_func_data);
-               mvwaddstr(window, i, 0, label);
-               line_skip = 0;
-          }else{
-               line_skip++;
+     if(chart_view->left_axis_label_format_func){
+          wstandend(window);
+          int32_t line_skip = 0;
+          int32_t label_draw_height = chart_view->braille_buffer_combined.height;
+          for(int32_t i = 0; i < label_draw_height; i++){
+               if(line_skip == chart_view->lines_between_left_axis_labels || i == (label_draw_height - 1) || i == 0){
+                    int32_t label_bytes = chart_view->left_axis_label_width + 1;
+                    char label[label_bytes];
+                    memset(label, 0, label_bytes);
+                    chart_view->left_axis_label_format_func(i, label_draw_height, label, label_bytes,
+                                                            chart_view->left_axis_label_format_func_data);
+                    mvwaddstr(window, i, 0, label);
+                    line_skip = 0;
+               }else{
+                    line_skip++;
+               }
+          }
+     }
+
+     if(chart_view->right_axis_label_format_func){
+          wstandend(window);
+          int32_t line_skip = 0;
+          int32_t label_draw_height = chart_view->braille_buffer_combined.height;
+          for(int32_t i = 0; i < label_draw_height; i++){
+               if(line_skip == chart_view->lines_between_right_axis_labels || i == (label_draw_height - 1) || i == 0){
+                    int32_t label_bytes = chart_view->right_axis_label_width + 1;
+                    char label[label_bytes];
+                    memset(label, 0, label_bytes);
+                    chart_view->right_axis_label_format_func(i, label_draw_height, label, label_bytes,
+                                                            chart_view->right_axis_label_format_func_data);
+                    mvwaddstr(window, i, chart_view->width - chart_view->right_axis_label_width, label);
+                    line_skip = 0;
+               }else{
+                    line_skip++;
+               }
           }
      }
 
