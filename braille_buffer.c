@@ -401,12 +401,16 @@ void braille_buffer_line(BrailleBuffer_t* braille_buffer, int32_t x_0, int32_t y
      }
 }
 
+// NOTE: bresenham line with clipping
 void braille_buffer_line_overlap(BrailleBuffer_t* braille_buffer, int32_t x_0, int32_t y_0, int32_t x_1, int32_t y_1,
                                  uint8_t color_pair, uint8_t overlap_color_pair){
      int32_t dy = (y_0 < y_1) ? 1 : -1;
+     int32_t width = braille_buffer_pixel_width(braille_buffer);
+     int32_t height = braille_buffer_pixel_height(braille_buffer);
 
      if(x_0 == x_1){
           for(int32_t y = y_0; y <= y_1; y += dy){
+               if(y < 0 || y >= height) return;
                braille_buffer_set_pixel(braille_buffer, x_0, y, true, color_pair);
           }
           return;
@@ -419,10 +423,12 @@ void braille_buffer_line_overlap(BrailleBuffer_t* braille_buffer, int32_t x_0, i
      int32_t y = y_0;
      int32_t dx = (x_0 < x_1) ? 1 : -1;
      for(int32_t x = x_0; x != x_1; x += dx){
+          if(x < 0 || x >= width) return;
           braille_buffer_set_pixel_overlap(braille_buffer, x, y, true, color_pair, overlap_color_pair);
           error += delta_error;
           while(error >= 0.5f){
                y += dy;
+               if(y < 0 || y >= height) return;
                error -= 1.0f;
           }
      }

@@ -50,7 +50,9 @@ static void draw_chart_on_braille_buffer(Chart_t* chart, double* data, BrailleBu
           int32_t prev_x = -1;
           int32_t prev_y = -1;
           int32_t entry_count = (stop_index - start_index) + 1;
-          for(int32_t i = start_index; i <= stop_index; i++){
+          int32_t last_iteration = stop_index;
+          if(last_iteration < (total_entry_count - 1)) last_iteration++;
+          for(int32_t i = start_index; i <= last_iteration; i++){
                if(i < 0) continue;
                if(i >= total_entry_count) continue;
                double d = (data[i] - chart->y_min) / y_range;
