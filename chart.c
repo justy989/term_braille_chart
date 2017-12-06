@@ -83,7 +83,9 @@ static void draw_chart_on_braille_buffer(Chart_t* chart, double* data, BrailleBu
                int32_t x = double_round((double)(chart_width) * d);
                for(int32_t j = chart_height - 1; j >= cur_y; j--){
                     for(int32_t k = 0; k <= bar_width; k++){
-                         braille_buffer_set_pixel_overlap(braille_buffer, x + k, j, true, color_pair, overlap_color_pair);
+                         int32_t final_x = k + x;
+                         if(final_x >= chart_width) break;
+                         braille_buffer_set_pixel_overlap(braille_buffer, final_x, j, true, color_pair, overlap_color_pair);
                     }
                }
           }
