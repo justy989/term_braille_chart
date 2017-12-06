@@ -12,7 +12,7 @@ static void get_buffer_dimensions_from_window_dimensions(int32_t window_width, i
                                                          int32_t left_axis_label_width, int32_t right_axis_label_width,
                                                          int32_t* buffer_width, int32_t* buffer_height){
      *buffer_width = window_width - (left_axis_label_width + right_axis_label_width);
-     *buffer_height = window_height - 2;
+     *buffer_height = window_height - 1;
 }
 
 void chart_view_resize(ChartView_t* chart_view, int32_t window_width, int32_t window_height,

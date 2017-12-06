@@ -1200,7 +1200,7 @@ bool quantity_axis_label_format_func(int32_t index, int32_t max, char* label, in
      double range = chart->y_max - chart->y_min;
      double value = chart->y_min + ((double)(max - index) / (double)(max)) * range;
      value -= fmod(value, 50.0);
-     snprintf(label, byte_count, "%'d", (int)(value));
+     snprintf(label, byte_count, " %'d", (int)(value));
      return true;
 }
 
@@ -1231,8 +1231,6 @@ void draw_charts(ChartView_t* chart_view, Chart_t* price_chart, Chart_t* quantit
 int main(){
      setlocale(LC_ALL, "");
 
-     WINDOW* chart_window = NULL;
-
      {
           initscr();
           // nodelay(stdscr, TRUE);
@@ -1250,8 +1248,6 @@ int main(){
           start_color();
           use_default_colors();
      }
-
-     chart_window = newwin(80, 210, 0, 0);
 
      init_pair(1, COLOR_BLUE, -1);
      init_pair(2, COLOR_RED, -1);
@@ -1282,16 +1278,20 @@ int main(){
      chart_view.bottom_axis_label_format_func_data = NULL;
      chart_view.right_axis_label_format_func_data = &quantity_chart;
      chart_view.space_between_bottom_axis_labels = 3;
-     chart_view.lines_between_right_axis_labels = 5;
+     chart_view.lines_between_right_axis_labels = 6;
      chart_view.lines_between_left_axis_labels = 5;
 
-     chart_view_resize(&chart_view, 210, 80, 8, 5);
+     int terminal_width;
+     int terminal_height;
+     getmaxyx(stdscr, terminal_height, terminal_width);
+
+     chart_view_resize(&chart_view, terminal_width, terminal_height, 8, 5);
 
      draw_charts(&chart_view, &price_chart, &quantity_chart, &lost_chart,
-                 price_differences, chart_window, data_start, data_end);
+                 price_differences, stdscr, data_start, data_end);
 
      refresh();
-     wrefresh(chart_window);
+     wrefresh(stdscr);
 
      bool done = false;
      while(true){
@@ -1316,7 +1316,7 @@ int main(){
                     data_start = 0;
                     data_end = diff;
                }
-               werase(chart_window);
+               werase(stdscr);
                break;
           case KEY_RIGHT:
                if(data_end < data_entries){
@@ -1328,7 +1328,7 @@ int main(){
                     data_end = data_entries - 1;
                     data_start = (data_entries - 1) - diff;
                }
-               werase(chart_window);
+               werase(stdscr);
                break;
           case KEY_UP:
           {
@@ -1336,7 +1336,7 @@ int main(){
                data_end -= diff;
                data_start += diff;
                if(data_end < data_start) data_end = data_start;
-               werase(chart_window);
+               werase(stdscr);
           } break;
           case KEY_DOWN:
           {
@@ -1351,17 +1351,23 @@ int main(){
                     data_start = (data_entries - 1) - diff * 2;
                }
                if(data_start < 0) data_start = 0;
-               werase(chart_window);
+               werase(stdscr);
+          } break;
+          case KEY_RESIZE:
+          {
+               getmaxyx(stdscr, terminal_height, terminal_width);
+               chart_view_resize(&chart_view, terminal_width, terminal_height, 8, 5);
+               werase(stdscr);
           } break;
           }
 
           if(done) break;
 
           draw_charts(&chart_view, &price_chart, &quantity_chart, &lost_chart,
-                      price_differences, chart_window, data_start, data_end);
+                      price_differences, stdscr, data_start, data_end);
 
           move(0, 0);
-          wrefresh(chart_window);
+          wrefresh(stdscr);
      }
 
      endwin();
