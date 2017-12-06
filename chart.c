@@ -49,7 +49,7 @@ static void draw_chart_on_braille_buffer(Chart_t* chart, double* data, BrailleBu
           int32_t chart_width = braille_buffer_pixel_width(braille_buffer);
           int32_t prev_x = -1;
           int32_t prev_y = -1;
-          int32_t entry_count = (stop_index - start_index) + 1;
+          int32_t space_divisions = stop_index - start_index;
           int32_t last_iteration = stop_index;
           if(last_iteration < (total_entry_count - 1)) last_iteration++;
           for(int32_t i = start_index; i <= last_iteration; i++){
@@ -58,7 +58,7 @@ static void draw_chart_on_braille_buffer(Chart_t* chart, double* data, BrailleBu
                double d = (data[i] - chart->y_min) / y_range;
                int32_t y = chart_height - double_round((double)(chart_height) * d);
 
-               d = (double)(i - start_index) / (double)(entry_count);
+               d = (double)(i - start_index) / (double)(space_divisions);
                int32_t x = double_round((double)(chart_width) * d);
 
                braille_buffer_line_overlap(braille_buffer, prev_x, prev_y, x, y, color_pair, overlap_color_pair);
