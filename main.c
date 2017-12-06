@@ -1213,6 +1213,21 @@ bool time_axis_label_format_func(int32_t index, int32_t max, char* label, int32_
      return true;
 }
 
+void draw_charts(ChartView_t* chart_view, Chart_t* price_chart, Chart_t* quantity_chart, Chart_t* lost_chart,
+                 double* price_differences, WINDOW* chart_window, int32_t data_start, int32_t data_end){
+     chart_view_clear_charts(chart_view);
+
+     chart_view->data_start_index = data_start;
+     chart_view->data_end_index = data_end;
+
+     chart_view_add_chart(chart_view, *price_chart, algo_prices, 1, 4);
+     chart_view_add_chart(chart_view, *price_chart, algo_hft_prices, 2, 4);
+     chart_view_add_chart(chart_view, *lost_chart, price_differences, 5, 4);
+     chart_view_add_chart(chart_view, *quantity_chart, algo_quantities, 3, 4);
+
+     chart_view_draw(chart_view, chart_window);
+}
+
 int main(){
      setlocale(LC_ALL, "");
 
@@ -1220,7 +1235,7 @@ int main(){
 
      {
           initscr();
-          nodelay(stdscr, TRUE);
+          // nodelay(stdscr, TRUE);
           keypad(stdscr, TRUE);
           cbreak();
           noecho();
@@ -1250,7 +1265,6 @@ int main(){
      int32_t data_start = 50;
      int32_t data_end = 100;
      const int32_t data_entries = sizeof(algo_prices) / sizeof(algo_prices[0]);
-     int32_t move_speed = 1;
 
      double price_differences[data_entries];
      double price_difference = 0;
@@ -1273,8 +1287,18 @@ int main(){
 
      chart_view_resize(&chart_view, 210, 80, 8, 5);
 
+     draw_charts(&chart_view, &price_chart, &quantity_chart, &lost_chart,
+                 price_differences, chart_window, data_start, data_end);
+
+     refresh();
+     wrefresh(chart_window);
+
      bool done = false;
      while(true){
+          int32_t diff = data_end - data_start;
+          int32_t move_speed = diff / 8;
+          if(move_speed == 0) move_speed = 1;
+
           int key = getch();
           switch(key){
           default:
@@ -1287,6 +1311,11 @@ int main(){
                     data_start -= move_speed;
                     data_end -= move_speed;
                }
+
+               if(data_start < 0){
+                    data_start = 0;
+                    data_end = diff;
+               }
                werase(chart_window);
                break;
           case KEY_RIGHT:
@@ -1294,11 +1323,15 @@ int main(){
                     data_start += move_speed;
                     data_end += move_speed;
                }
+
+               if(data_end >= data_entries){
+                    data_end = data_entries - 1;
+                    data_start = (data_entries - 1) - diff;
+               }
                werase(chart_window);
                break;
           case KEY_UP:
           {
-               int32_t diff = data_end - data_start;
                diff /= 4;
                data_end -= diff;
                data_start += diff;
@@ -1307,7 +1340,6 @@ int main(){
           } break;
           case KEY_DOWN:
           {
-               int32_t diff = data_end - data_start;
                data_end += diff;
                data_start -= diff;
                if(data_start < 0){
@@ -1325,19 +1357,8 @@ int main(){
 
           if(done) break;
 
-          {
-               chart_view_clear_charts(&chart_view);
-
-               chart_view.data_start_index = data_start;
-               chart_view.data_end_index = data_end;
-
-               chart_view_add_chart(&chart_view, price_chart, algo_prices, 1, 4);
-               chart_view_add_chart(&chart_view, price_chart, algo_hft_prices, 2, 4);
-               chart_view_add_chart(&chart_view, lost_chart, price_differences, 5, 4);
-               chart_view_add_chart(&chart_view, quantity_chart, algo_quantities, 3, 4);
-
-               chart_view_draw(&chart_view, chart_window);
-          }
+          draw_charts(&chart_view, &price_chart, &quantity_chart, &lost_chart,
+                      price_differences, chart_window, data_start, data_end);
 
           move(0, 0);
           wrefresh(chart_window);
