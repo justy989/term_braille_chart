@@ -1285,7 +1285,7 @@ int main(){
      int terminal_height;
      getmaxyx(stdscr, terminal_height, terminal_width);
 
-     chart_view_resize(&chart_view, terminal_width, terminal_height, 8, 5);
+     chart_view_resize(&chart_view, terminal_width, terminal_height, 8, 6);
 
      draw_charts(&chart_view, &price_chart, &quantity_chart, &lost_chart,
                  price_differences, stdscr, data_start, data_end);
