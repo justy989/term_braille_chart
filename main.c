@@ -1331,13 +1331,10 @@ int main(){
                chart_view.data_start_index = data_start;
                chart_view.data_end_index = data_end;
 
-               chart_view_add_chart(&chart_view, price_chart, algo_prices, 1);
-               chart_view_add_chart(&chart_view, price_chart, algo_hft_prices, 2);
-               chart_view_add_chart(&chart_view, lost_chart, price_differences, 5);
-               chart_view_add_chart(&chart_view, quantity_chart, algo_quantities, 3);
-
-               // TODO: this gets cleared when we call chart_view_resize(), what should we do about this?
-               chart_view.braille_buffer_combined.color_pair = 4;
+               chart_view_add_chart(&chart_view, price_chart, algo_prices, 1, 4);
+               chart_view_add_chart(&chart_view, price_chart, algo_hft_prices, 2, 4);
+               chart_view_add_chart(&chart_view, lost_chart, price_differences, 5, 4);
+               chart_view_add_chart(&chart_view, quantity_chart, algo_quantities, 3, 4);
 
                chart_view_draw(&chart_view, chart_window);
           }

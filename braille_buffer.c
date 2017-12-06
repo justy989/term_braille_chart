@@ -19,19 +19,12 @@ void braille_buffer_free(BrailleBuffer_t* braille_buffer){
      memset(braille_buffer, 0, sizeof(*braille_buffer));
 }
 
-uint8_t* braille_buffer_get_cell(BrailleBuffer_t* braille_buffer, int32_t x, int32_t y){
-     // if(x < 0 || y < 0 || x >= braille_buffer->width * BRAILLE_COLUMNS_PER_CELL || y >= braille_buffer->height * BRAILLE_ROWS_PER_CELL) return NULL;
+BrailleCell_t* braille_buffer_get_cell(BrailleBuffer_t* braille_buffer, int32_t x, int32_t y){
      int32_t index = y * braille_buffer->width + x;
      return braille_buffer->cells + index;
 }
 
-bool braille_buffer_set_pixel(BrailleBuffer_t* braille_buffer, int32_t x, int32_t y, bool on){
-     // if(x < 0 || y < 0) return false;
-
-     // int32_t max_x = braille_buffer->width * BRAILLE_COLUMNS_PER_CELL;
-     // int32_t max_y = braille_buffer->height * BRAILLE_ROWS_PER_CELL;
-     // if(x >= max_x || y >= max_y) return false;
-
+bool braille_buffer_set_pixel(BrailleBuffer_t* braille_buffer, int32_t x, int32_t y, bool on, uint8_t color_pair){
      int32_t cell_x = x / BRAILLE_COLUMNS_PER_CELL;
      int32_t cell_y = y / BRAILLE_ROWS_PER_CELL;
      int32_t pixel_x = x % BRAILLE_COLUMNS_PER_CELL;
@@ -44,13 +37,48 @@ bool braille_buffer_set_pixel(BrailleBuffer_t* braille_buffer, int32_t x, int32_
           {0x40, 0x80}
      };
 
-     uint8_t* cell = braille_buffer_get_cell(braille_buffer, cell_x, cell_y);
+     BrailleCell_t* cell = braille_buffer_get_cell(braille_buffer, cell_x, cell_y);
      if(!cell) return false;
 
      if(on){
-          *cell |= map[pixel_y][pixel_x];
+          cell->character |= map[pixel_y][pixel_x];
      }else{
-          *cell &= ~map[pixel_y][pixel_x];
+          cell->character &= ~map[pixel_y][pixel_x];
+     }
+
+     cell->color = color_pair;
+     return true;
+}
+
+bool braille_buffer_set_pixel_overlap(BrailleBuffer_t* braille_buffer, int32_t x, int32_t y, bool on, uint8_t color_pair, uint8_t overlap_color_pair){
+     int32_t cell_x = x / BRAILLE_COLUMNS_PER_CELL;
+     int32_t cell_y = y / BRAILLE_ROWS_PER_CELL;
+     int32_t pixel_x = x % BRAILLE_COLUMNS_PER_CELL;
+     int32_t pixel_y = y % BRAILLE_ROWS_PER_CELL;
+
+     static const uint8_t map[BRAILLE_ROWS_PER_CELL][BRAILLE_COLUMNS_PER_CELL] = {
+          {0x1, 0x8},
+          {0x2, 0x10},
+          {0x4, 0x20},
+          {0x40, 0x80}
+     };
+
+     BrailleCell_t* cell = braille_buffer_get_cell(braille_buffer, cell_x, cell_y);
+     if(!cell) return false;
+
+
+     if(on){
+          if(cell->character){
+               if(cell->color != color_pair){
+                    cell->color = overlap_color_pair;
+               }
+          }else{
+               cell->color = color_pair;
+          }
+
+          cell->character |= map[pixel_y][pixel_x];
+     }else{
+          cell->character &= ~map[pixel_y][pixel_x];
      }
 
      return true;
@@ -58,7 +86,7 @@ bool braille_buffer_set_pixel(BrailleBuffer_t* braille_buffer, int32_t x, int32_
 
 void braille_buffer_clear(BrailleBuffer_t* braille_buffer){
      int32_t count = braille_buffer->width * braille_buffer->height;
-     memset(braille_buffer->cells, 0, count);
+     memset(braille_buffer->cells, 0, count * sizeof(*braille_buffer->cells));
 }
 
 void braille_buffer_draw(BrailleBuffer_t* braille_buffer, WINDOW* window){
@@ -322,12 +350,17 @@ void braille_buffer_draw(BrailleBuffer_t* braille_buffer, WINDOW* window){
      };
 
      int32_t count = braille_buffer->width * braille_buffer->height;
-     uint8_t* cell = braille_buffer->cells;
+     BrailleCell_t* cell = braille_buffer->cells;
+     uint8_t last_color = 0;
      for(int32_t i = 0; i < count; i++){
-          if(*cell){
+          if(cell->character){
                int32_t x = i % braille_buffer->width;
                int32_t y = i / braille_buffer->width;
-               mvwaddstr(window, braille_buffer->y_offset + y, braille_buffer->x_offset + x, unicode_lookup[*cell]);
+               if(cell->color != last_color){
+                    wstandend(window);
+                    wattron(window, COLOR_PAIR(cell->color));
+               }
+               mvwaddstr(window, braille_buffer->y_offset + y, braille_buffer->x_offset + x, unicode_lookup[cell->character]);
           }
           cell++;
      }
@@ -342,12 +375,12 @@ int32_t braille_buffer_pixel_height(BrailleBuffer_t* braille_buffer){
 }
 
 // NOTE: bresenham line algo
-void braille_buffer_line(BrailleBuffer_t* braille_buffer, int32_t x_0, int32_t y_0, int32_t x_1, int32_t y_1){
+void braille_buffer_line(BrailleBuffer_t* braille_buffer, int32_t x_0, int32_t y_0, int32_t x_1, int32_t y_1, uint8_t color_pair){
      int32_t dy = (y_0 < y_1) ? 1 : -1;
 
      if(x_0 == x_1){
           for(int32_t y = y_0; y <= y_1; y += dy){
-               braille_buffer_set_pixel(braille_buffer, x_0, y, true);
+               braille_buffer_set_pixel(braille_buffer, x_0, y, true, color_pair);
           }
           return;
      }
@@ -359,7 +392,34 @@ void braille_buffer_line(BrailleBuffer_t* braille_buffer, int32_t x_0, int32_t y
      int32_t y = y_0;
      int32_t dx = (x_0 < x_1) ? 1 : -1;
      for(int32_t x = x_0; x != x_1; x += dx){
-          braille_buffer_set_pixel(braille_buffer, x, y, true);
+          braille_buffer_set_pixel(braille_buffer, x, y, true, color_pair);
+          error += delta_error;
+          while(error >= 0.5f){
+               y += dy;
+               error -= 1.0f;
+          }
+     }
+}
+
+void braille_buffer_line_overlap(BrailleBuffer_t* braille_buffer, int32_t x_0, int32_t y_0, int32_t x_1, int32_t y_1,
+                                 uint8_t color_pair, uint8_t overlap_color_pair){
+     int32_t dy = (y_0 < y_1) ? 1 : -1;
+
+     if(x_0 == x_1){
+          for(int32_t y = y_0; y <= y_1; y += dy){
+               braille_buffer_set_pixel(braille_buffer, x_0, y, true, color_pair);
+          }
+          return;
+     }
+
+     double delta_x = x_1 - x_0;
+     double delta_y = y_1 - y_0;
+     double delta_error = fabs(delta_y / delta_x);
+     double error = 0.0f;
+     int32_t y = y_0;
+     int32_t dx = (x_0 < x_1) ? 1 : -1;
+     for(int32_t x = x_0; x != x_1; x += dx){
+          braille_buffer_set_pixel_overlap(braille_buffer, x, y, true, color_pair, overlap_color_pair);
           error += delta_error;
           while(error >= 0.5f){
                y += dy;
